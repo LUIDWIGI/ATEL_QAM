@@ -12,7 +12,7 @@ params = struct();
 
 % Modulation parameters
 params.modulation_order = 16;           % 16-QAM
-params.bits_per_symbol = 4;             % log2(16) = 4
+params.bits_per_symbol = log2(params.modulation_order);             % log2(16) = 4
 
 % OFDM parameters
 params.num_subcarriers = 8;             % Total subcarriers
@@ -24,14 +24,18 @@ params.bitwidth = 20;                   % Total bits per OFDM symbol
 params.cyclic_prefix_length = 4;        % CP length (samples)
 
 % Channel parameters
-params.SNR_dB = 5;                     % Signal-to-noise ratio in dB
+params.SNR_dB = 20;                     % Signal-to-noise ratio in dBsymbol
+
+% Input dimensions
+params.input_height = 63;
+params.input_width = 63;
 
 %% Generate Random Data
-num_bits = params.bitwidth;
-data_bits = randi([0 1], num_bits, 1);
+num_bits = params.input_height*params.input_width;
+data_bits = randi([0 1], params.input_height, params.input_width);
 
 fprintf('Generated %d random bits\n', num_bits);
-fprintf('Data bits: %s\n', num2str(data_bits'));
+% fprintf('Data bits: %s\n', num2str(data_bits'));
 
 %% Transmitter Chain
 
@@ -40,15 +44,18 @@ fprintf('Data bits: %s\n', num2str(data_bits'));
 % encoded_bits = channel_encode(data_bits, params);
 % fprintf('Encoded bits length: %d\n', length(encoded_bits));
 
-% % 2. Framing (To Be Implemented)
-% fprintf('\n--- Framing ---\n');
-% framed_bits = add_framing(encoded_bits, params);
-% fprintf('Framed bits length: %d\n', length(framed_bits));
+% 2. Framing (To Be Implemented)
+fprintf('\n--- Framing ---\n');
+framed_bits = framing(data_bits, params);
+fprintf('Framed bits length: %d\n', length(framed_bits));
 
 % 3. QAM Modulation
 fprintf('\n--- QAM Modulation ---\n');
-qam_symbols = qam_modulator(data_bits, params);
+qam_symbols = qam_modulator(framed_bits, params);
 fprintf('Number of QAM symbols: %d\n', length(qam_symbols));
+
+% Plot the constelation
+scatterplot(qam_symbols)
 
 % % 4. Pulse Shaping Filter
 % fprintf('\n--- Pulse Shaping ---\n');
@@ -68,6 +75,9 @@ fprintf('Number of QAM symbols: %d\n', length(qam_symbols));
 %% Channel
 fprintf('\n--- Channel Transmission ---\n');
 rx_signal = channel_model(qam_symbols, params);
+scatterplot(rx_signal)
+
+
 
 % %% Receiver Chain
 
@@ -90,10 +100,11 @@ rx_signal = channel_model(qam_symbols, params);
 % 5. QAM Demodulation
 fprintf('\n--- QAM Demodulation ---\n');
 demod_bits = qam_demodulator(rx_signal, params);
+fprintf('Demodulated bits length: %d\n', length(demod_bits));
 
-% % 6. Remove Framing
-% fprintf('\n--- Removing Framing ---\n');
-% deframed_bits = remove_framing(demod_bits, params);
+% 6. Remove Framing
+fprintf('\n--- Removing Framing ---\n');
+deframed_bits = deframing(demod_bits, params);
 
 % % 7. Channel Decoding
 % fprintf('\n--- Channel Decoding ---\n');
@@ -101,7 +112,7 @@ demod_bits = qam_demodulator(rx_signal, params);
 
 %% Performance Evaluation
 fprintf('\n=== Performance Evaluation ===\n');
-num_errors = sum(data_bits ~= demod_bits(1:length(data_bits)));
+num_errors = sum(data_bits ~= deframed_bits(1:length(data_bits)));
 BER = num_errors / length(data_bits);
 
 fprintf('Number of bit errors: %d\n', num_errors);

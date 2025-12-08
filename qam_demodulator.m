@@ -12,12 +12,12 @@ M = params.modulation_order;  % 16
 k = params.bits_per_symbol;   % 4
 
 % Demodulate using 16-QAM
-decimal_values = qamdemod(symbols, M, 'UnitAveragePower', true);
+bits = qamdemod(symbols, M, 'OutputType', 'bit');
 
-% Convert decimal to binary
-bit_matrix = de2bi(decimal_values, k, 'left-msb');
+% % Convert decimal to binary
+% bit_matrix = de2bi(decimal_values, k, 'left-msb');
 
 % Reshape to column vector
-bits = reshape(bit_matrix', [], 1);
+bits = bits(:);
 
 end
