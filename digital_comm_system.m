@@ -15,8 +15,12 @@ params.modulation_order = 16;           % 16-QAM
 params.bits_per_symbol = log2(params.modulation_order);             % log2(16) = 4
 
 % OFDM parameters
-params.num_subcarriers = 8;             % Total subcarriers
-params.num_guardbands = 2;              % Edge guardbands (3 total including DC)
+params.num_subcarriers = 128;             % Total subcarriers
+params.num_guardbands = 11;              % Edge guardbands (3 total including DC)
+params.num_dcbands = 3;
+params.guardband_indices = [ 1:6, 63:65 , 124:128]'; % Guardband indices
+params.num_pilots = 6; % Number of pilot carriers
+params.pilot_indices = [-42, -25, -11, 11, 25, 42]'; % Pilot carrier indices
 params.num_data_carriers = params.num_subcarriers - params.num_guardbands - 1; % 5 active carriers
 
 % System parameters
