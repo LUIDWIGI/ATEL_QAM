@@ -38,51 +38,33 @@ function pilots = pilot_utils(operation, params, varargin)
             data_symbols = varargin{1};
             pilot_symbols = varargin{2};
             
-            % Create output vector
-            total_carriers = params.num_subcarriers - length(params.guardband_indices);
-            pilots = zeros(total_carriers, 1);
+            % Create output vector for all subcarriers (including guardbands)
+            pilots = zeros(params.num_subcarriers, 1);
             
-            % Calculate pilot positions (convert from centered to FFT indexing)
-            pilot_pos = params.pilot_indices + (params.num_subcarriers/2 + 1);
-            pilot_pos(pilot_pos > params.num_subcarriers) = pilot_pos(pilot_pos > params.num_subcarriers) - params.num_subcarriers;
+            % Insert pilots at their positions (params.pilot_indices are in 1-128 range)
+            pilots(params.pilot_indices) = pilot_symbols;
             
-            % Remove guardbands from pilot positions
-            for i = 1:length(pilot_pos)
-                pilot_pos(i) = pilot_pos(i) - sum(params.guardband_indices < pilot_pos(i));
-            end
+            % Get data carrier indices (all non-guardband, non-pilot carriers)
+            data_carrier_idx = setdiff(1:params.num_subcarriers, ...
+                [params.guardband_indices; params.pilot_indices]);
             
-            % Insert pilots
-            data_idx = 1;
-            for i = 1:total_carriers
-                if any(pilot_pos == i)
-                    pilot_idx = find(pilot_pos == i);
-                    pilots(i) = pilot_symbols(pilot_idx);
-                else
-                    if data_idx <= length(data_symbols)
-                        pilots(i) = data_symbols(data_idx);
-                        data_idx = data_idx + 1;
-                    end
-                end
+            % Insert data symbols
+            if length(data_symbols) <= length(data_carrier_idx)
+                pilots(data_carrier_idx(1:length(data_symbols))) = data_symbols;
+            else
+                error('Too many data symbols for available carriers');
             end
             
         case 'extract'
             % Extract pilot symbols from received OFDM symbols
-            % varargin{1} = received_symbols (all subcarriers)
+            % varargin{1} = received_symbols (all subcarriers including guardbands)
             if isempty(varargin)
                 error('Extract operation requires received_symbols');
             end
             received_symbols = varargin{1};
             
-            % Calculate pilot positions
-            pilot_pos = params.pilot_indices + (params.num_subcarriers/2 + 1);
-            pilot_pos(pilot_pos > params.num_subcarriers) = pilot_pos(pilot_pos > params.num_subcarriers) - params.num_subcarriers;
-            
-            % Remove guardbands from pilot positions
-            for i = 1:length(pilot_pos)
-                pilot_pos(i) = pilot_pos(i) - sum(params.guardband_indices < pilot_pos(i));
-            end
-            
-            pilots = received_symbols(pilot_pos);
+            % Use pilot indices directly (params.pilot_indices are in 1-128 range)
+            pilots = received_symbols(params.pilot_indices);
             
         case 'estimate'
             % Estimate channel response from pilots
@@ -95,42 +77,23 @@ function pilots = pilot_utils(operation, params, varargin)
             tx_pilots = varargin{2};
             
             % Simple channel estimation: H = Y/X
-            H_pilots = rx_pilots ./ tx_pilots;
+            H_pilots = rx_pilots ./ (tx_pilots + 1e-10);
             
-            % Interpolate to all data carriers
-            pilot_pos = params.pilot_indices + (params.num_subcarriers/2 + 1);
-            pilot_pos(pilot_pos > params.num_subcarriers) = pilot_pos(pilot_pos > params.num_subcarriers) - params.num_subcarriers;
-            
-            % Remove guardbands
-            for i = 1:length(pilot_pos)
-                pilot_pos(i) = pilot_pos(i) - sum(params.guardband_indices < pilot_pos(i));
-            end
-            
-            total_carriers = params.num_subcarriers - length(params.guardband_indices);
-            data_pos = setdiff(1:total_carriers, pilot_pos);
-            
-            % Linear interpolation
-            pilots = interp1(pilot_pos, H_pilots, 1:total_carriers, 'linear', 'extrap').';
+            % Interpolate to all subcarriers (1:128) including guardbands
+            % Use pilot indices directly (they're already in 1-128 range)
+            pilots = interp1(params.pilot_indices, H_pilots, 1:params.num_subcarriers, 'linear', 'extrap').';
             
         case 'remove_data'
             % Remove pilot carriers and return only data symbols
-            % varargin{1} = all_symbols (with pilots)
+            % varargin{1} = all_symbols (with pilots and guardbands)
             if isempty(varargin)
                 error('Remove_data operation requires all_symbols');
             end
             all_symbols = varargin{1};
             
-            % Calculate pilot positions
-            pilot_pos = params.pilot_indices + (params.num_subcarriers/2 + 1);
-            pilot_pos(pilot_pos > params.num_subcarriers) = pilot_pos(pilot_pos > params.num_subcarriers) - params.num_subcarriers;
-            
-            % Remove guardbands from pilot positions
-            for i = 1:length(pilot_pos)
-                pilot_pos(i) = pilot_pos(i) - sum(params.guardband_indices < pilot_pos(i));
-            end
-            
-            total_carriers = params.num_subcarriers - length(params.guardband_indices);
-            data_pos = setdiff(1:total_carriers, pilot_pos);
+            % Get data carrier indices (all non-guardband, non-pilot carriers)
+            data_pos = setdiff(1:params.num_subcarriers, ...
+                [params.guardband_indices; params.pilot_indices]);
             
             pilots = all_symbols(data_pos);
             

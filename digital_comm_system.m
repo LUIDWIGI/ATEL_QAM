@@ -25,13 +25,15 @@ params.guardband_indices = [ 1:6, 63:65 , 124:128]'; % Guardband indices
 params.num_pilots = 6; % Number of pilot carriers
 params.pilot_indices = [44, 61, 75, 89, 103, 120]'; % Pilot carrier indices (1-128 range)
 params.num_data_carriers = params.num_subcarriers - params.num_guardbands - 1; % 5 active carriers
+params.data_carrier_indices = setdiff((1:params.num_subcarriers)', ...
+    [params.guardband_indices; 65]); % Exclude guardbands and DC
 
 % System parameters
 params.bitwidth = 20;                   % Total bits per OFDM symbol
 params.cyclic_prefix_length = 4;        % CP length (samples)
 
 % Channel parameters
-params.SNR_dB = 20;                     % Signal-to-noise ratio in dBsymbol
+params.SNR_dB = 27;                     % Signal-to-noise ratio in dBsymbol
 
 % Input dimensions
 params.input_height = 63;
@@ -72,21 +74,19 @@ fprintf('OFDM symbol length: %d\n', length(ofdm_symbol));
 %% Channel
 fprintf('\n--- Channel Transmission ---\n');
 rx_signal = channel_model(ofdm_symbol, params);
-scatterplot(rx_signal)
 
-% %% Receiver Chain
+%% Receiver Chain
 
-% 2. OFDM Demod
-fprintf('\n--- OFDM Demodulation (FFT) ---\n');
-rx_ofdm = ofdm_demodulator(rx_signal, params);
+% 1. OFDM Demodulation (with integrated equalization)
+fprintf('\n--- OFDM Demodulation & Equalization ---\n');
+rx_qam_symbols = ofdm_demodulator(rx_signal, params);
+fprintf('Recovered QAM symbols: %d\n', length(rx_qam_symbols));
 
-% % 3. Equalization
-% fprintf('\n--- Equalization ---\n');
-% equalized = equalizer(rx_ofdm, params);
+scatterplot(rx_qam_symbols)
 
-% 5. QAM Demodulation
+% 2. QAM Demodulation
 fprintf('\n--- QAM Demodulation ---\n');
-demod_bits = qam_demodulator(rx_ofdm, params);
+demod_bits = qam_demodulator(rx_qam_symbols, params);
 fprintf('Demodulated bits length: %d\n', length(demod_bits));
 
 % 6. Remove Framing
