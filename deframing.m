@@ -25,9 +25,9 @@ barker2_required_correlation = 0.9;
 
 %% Deframing
 % Ensure frame is the correct length
-if length(frame) ~= frame_length
-    error('deframing:InvalidFrameLength', 'Frame must be exactly %d bits, got %d bits', frame_length, length(frame));
-end
+%if length(frame) ~= frame_length
+%    error('deframing:InvalidFrameLength', 'Frame must be exactly %d bits, got %d bits', frame_length, length(frame));
+%end
 
 % Extract data bits directly (assuming perfect synchronization)
 % Skip Barker codes and metadata, extract only data
