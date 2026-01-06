@@ -39,7 +39,7 @@ function qam_symbols = ofdm_demodulator(ofdm_symbol, params)
         H_data = interp1(params.pilot_indices, H_pilots, data_indices, 'linear', 'extrap').';
         
         % Equalize using MATLAB's ofdmEqualize function
-        eq_symbols = ofdmEqualize(chunk_symbols, H_Algorithm="zf");
+        eq_symbols = ofdmEqualize(chunk_symbols, H_data, Algorithm="zf");
         
         % Concatenate chunks
         qam_symbols = [qam_symbols; eq_symbols];
