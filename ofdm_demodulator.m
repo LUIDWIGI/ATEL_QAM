@@ -39,18 +39,25 @@ function qam_symbols = ofdm_demodulator(ofdm_symbol, params)
         H_data = interp1(params.pilot_indices, H_pilots, data_indices, 'linear', 'extrap').';
         
         % Equalize using MATLAB's ofdmEqualize function
-        eq_symbols = ofdmEqualize(chunk_symbols, H_data, Algorithm="zf");
+        eq_symbols = ofdmEqualize(chunk_symbols, H_data, algorithm="zf");
         
         % Concatenate chunks
         qam_symbols = [qam_symbols; eq_symbols];
     end
 
-    % Remove padding to return to original size of 1024
-    original_size = 1024;
-    if length(qam_symbols) > original_size
-        qam_symbols = qam_symbols(1:original_size);
-        fprintf('OFDM Demodulator: Trimmed %d padded symbols to restore original size of %d\n', ...
-            length(qam_symbols) - original_size, original_size);
+    % Remove padding based on frame structure
+    % Frame length is 4096 bits, convert to symbols based on modulation order
+    frame_length = 4096; % bits per frame
+    expected_symbols = frame_length / params.bits_per_symbol;
+    
+    if length(qam_symbols) > expected_symbols
+        padding_removed = length(qam_symbols) - expected_symbols;
+        qam_symbols = qam_symbols(1:expected_symbols);
+        fprintf('OFDM Demodulator: Removed %d padded symbols (recovered %d symbols from %d chunks)\n', ...
+            padding_removed, expected_symbols, num_chunks);
+    else
+        fprintf('OFDM Demodulator: Recovered %d QAM symbols from %d chunks\n', ...
+            length(qam_symbols), num_chunks);
     end
 
 end

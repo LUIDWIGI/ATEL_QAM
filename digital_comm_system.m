@@ -69,15 +69,15 @@ fprintf('\n--- OFDM (IFFT) ---\n');
 ofdm_symbol = ofdm_modulator(qam_symbols, params);
 fprintf('OFDM symbol length: %d\n', length(ofdm_symbol));
 
-%% Artificial noise commented out
-%fprintf('\n--- Channel Transmission ---\n');
-%rx_signal = channel_model(ofdm_symbol, params);
+% Artificial noise commented out
+fprintf('\n--- Channel Transmission ---\n');
+rx_signal = channel_model(ofdm_symbol, params);
 
-% SEND SIGNAL
-pluto_send(ofdm_symbol, pluto_params);
-
-% RECEIVE SIGNAL
-rx_signal = pluto_receive(pluto_params);
+% % SEND SIGNAL
+% pluto_send(ofdm_symbol, pluto_params);
+% 
+% % RECEIVE SIGNAL
+% rx_signal = pluto_receive(pluto_params);
 
 
 %% Receiver Chain
