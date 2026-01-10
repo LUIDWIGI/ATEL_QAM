@@ -64,20 +64,24 @@ fprintf('\n--- QAM Modulation ---\n');
 qam_symbols = qam_modulator(framed_bits, params);
 fprintf('Number of QAM symbols: %d\n', length(qam_symbols));
 
-% 5. OFDM Mod
+% 4. OFDM Mod
 fprintf('\n--- OFDM (IFFT) ---\n');
 ofdm_symbol = ofdm_modulator(qam_symbols, params);
 fprintf('OFDM symbol length: %d\n', length(ofdm_symbol));
 
+
 % Artificial noise commented out
 fprintf('\n--- Channel Transmission ---\n');
-rx_signal = channel_model(ofdm_symbol, params);
+%rx_signal = channel_model(ofdm_symbol, params);
+
+
 
 % % SEND SIGNAL
-% pluto_send(ofdm_symbol, pluto_params);
+pluto_send(ofdm_symbol, pluto_params);
 % 
 % % RECEIVE SIGNAL
-% rx_signal = pluto_receive(pluto_params);
+rx_signal = pluto_receive(pluto_params, params);
+
 
 
 %% Receiver Chain
@@ -87,12 +91,13 @@ fprintf('\n--- OFDM Demodulation & Equalization ---\n');
 rx_qam_symbols = ofdm_demodulator(rx_signal, params);
 fprintf('Recovered QAM symbols: %d\n', length(rx_qam_symbols));
 
-ax = gca;
-ax.XLim = [-3 3];
-ax.YLim = [-3 3];
-axis square;
-grid on;
+%ax = gca;
+%ax.XLim = [-3 3];
+%ax.YLim = [-3 3];
+%axis square;
+%grid on;
 
+scatterplot(rx_qam_symbols)
 
 % 2. QAM Demodulation
 fprintf('\n--- QAM Demodulation ---\n');

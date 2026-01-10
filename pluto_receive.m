@@ -1,63 +1,55 @@
-function [rx_time, rxSym] = pluto_receive(p)
-    pause(0.5);
-    p.rx();                 % flush
-    r = p.rx();             % capture
-    r = single(r);
+function rxSym = pluto_receive(pluto_params, params)
+    % Known pilots
+    txPilots = ones(length(params.pilot_indices), 1);
 
-    rx_time = r;            
+    pause(0.2);
+    pluto_params.rx(); pluto_params.rx();   % flush
 
-    % ----- CFO estimate (QPSK 4th power) -----
-    n  = (0:length(r)-1).';
-    r4 = r.^4;
-    ph = unwrap(angle(r4));
-    dph = diff(ph);
-    cfo = (p.basebandFs/(2*pi*4)) * mean(dph);
-    fprintf("Estimated CFO: %.2f Hz\n", cfo);
-
-    % CFO correction
-    r = r .* exp(-1j*2*pi*cfo/p.basebandFs*n);
-
-    % ----- Symbol timing (coarse) -----
-    bestK = 1;
-    bestPow = 0;
-    for k = 1:p.sps
-        rk = r(k:p.sps:end);
-        pwr = mean(abs(rk).^2);
-        if pwr > bestPow
-            bestPow = pwr;
-            bestK = k;
-        end
-    end
-    rSym = r(bestK:p.sps:end);
-
-    % ----- Constant phase + extra 45 degree shift -----
-    if length(rSym) > 200
-        rUse = rSym(200:end);
-    else
-        rUse = rSym;
-    end
-    phi = angle(mean(rUse.^4)) / 4;
-    rSym = rSym .* exp(-1j*(phi + pi/4));
-
-    % ----- Normalize for plotting (unit RMS) -----
-    if length(rSym) > 200
-        rUse2 = rSym(200:end);
-    else
-        rUse2 = rSym;
-    end
-    rxRms = sqrt(mean(abs(rUse2).^2));
-    if rxRms > 0
-        rSym = rSym / rxRms;
+    % Capture a two frames so you likely catch many OFDM symbols
+    rx_time = complex(single([]));
+    for k = 1:2
+        rx_time = [rx_time; single(pluto_params.rx())];
     end
 
-    rxSym = rSym;
+    % Coarse OFDM boundary via CP correlation
+    startIdx = coarse_ofdm_sync_cp(rx_time, params.num_subcarriers, params.cyclic_prefix_length);
+    rx = rx_time(startIdx:end);
 
-    % ----- RX constellation plot -----
-    figure(1);
-    subplot(1,2,2);
-    plot(real(rSym), imag(rSym), '.', 'MarkerSize', 6);
-    grid on; axis square;
-    xlim([-1 1]); ylim([-1 1]);
-    title("Received symbols");
-    xlabel("In-Phase"); ylabel("Quadrature");
+    % Trim to whole OFDM symbols
+    L = params.num_subcarriers + params.cyclic_prefix_length;
+    numSyms = floor(length(rx) / L);
+    rxSym = rx(1:numSyms*L);
+
+    % FFT + pilot phase correction
+    Xall = zeros(params.num_subcarriers, numSyms, "like", complex(1,1));
+    cpe  = zeros(numSyms,1);
+
+    for s = 1:numSyms
+        i0 = (s-1)*L;
+
+        sym_td = rxSym(i0 + params.cyclic_prefix_length + 1 : i0 + L);
+        X = fftshift(fft(sym_td, params.num_subcarriers));
+
+        % Pilot based CPE estimate
+        rxP = X(params.pilot_indices);
+        phi = angle(sum(rxP .* conj(txPilots)));
+        cpe(s) = phi;
+
+        Xc = X * exp(-1j*phi);
+        Xall(:,s) = Xc;
+    end
+end
+
+function startIdx = coarse_ofdm_sync_cp(rx, num_subcarriers, cyclic_prefix_length)
+
+    maxSearch = length(rx) - (num_subcarriers + cyclic_prefix_length + 1);
+
+    metric = zeros(maxSearch,1);
+    for i = 1:maxSearch
+        a = rx(i : i+cyclic_prefix_length-1);
+        b = rx(i+num_subcarriers : i+num_subcarriers+cyclic_prefix_length-1);
+        metric(i) = abs(sum(conj(a).*b));
+    end
+
+    [~, startIdx] = max(metric);
 end

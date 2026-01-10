@@ -1,9 +1,12 @@
 function pluto_send(txWaveform, p, txSymbols)
     txWaveform = txWaveform(:);
-    txWaveform = txWaveform / max(abs(txWaveform));
-    txWaveform = 0.25 * txWaveform;
 
-    % Optional TX constellation plot (only if txSymbols provided)
+    m = max(abs(txWaveform));
+    if m > 0
+        txWaveform = txWaveform / m;
+    end
+    txWaveform = 0.25 * txWaveform;   % backoff
+
     if nargin >= 3 && ~isempty(txSymbols)
         figure(1);
         subplot(1,2,1);
