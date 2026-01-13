@@ -12,6 +12,9 @@ function encoded_bits = channel_encoding(bits, params)
 % resized_bits = zeros(params.input_height, params.input_width + params.parity_bits);
 % resized_bits(1:params.input_height, 1:params.input_width) = bits;
 
+% Convert to double (encode requires double, not integer types)
+bits = double(bits);
+
 encoded_bits = encode(bits, params.input_height, params.input_width, 'hamming/binary');
 
 end
