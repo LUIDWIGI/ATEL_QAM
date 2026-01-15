@@ -42,6 +42,7 @@ data_block2 = frame(2144:4096); % 1953 bits
 deframed_bits = [data_block1; data_block2];
 
 % Reshape to match encoded dimensions (63x63)
-deframed_bits = reshape(deframed_bits, 63, 63);
+% deframed_bits = reshape(deframed_bits, 63, 63);
+deframed_bits = reshape(deframed_bits, [], 1); % Keep as column vector
 
 end

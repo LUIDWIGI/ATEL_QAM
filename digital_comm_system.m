@@ -82,6 +82,8 @@ if length(params.input_file_bits) < params.num_frames * params.num_bits
     params.input_file_bits = [params.input_file_bits; zeros(params.num_frames * params.num_bits - length(params.input_file_bits), 1)];
 end
 
+% params.num_frames = 1;
+
 % For every frame
 for f = 1:params.num_frames
     fprintf('Frame %d/%d\n', f, params.num_frames);
@@ -89,10 +91,12 @@ for f = 1:params.num_frames
     % Read data bits for this frame
     data_bits = params.input_file_bits((f-1)*params.num_bits + 1 : min(f*params.num_bits, length(params.input_file_bits)));
     
+    % Overwrite with random bits for testing
+    % data_bits = randi([0 1], params.num_bits, 1);
     % convert to column vector
     data_bits = data_bits(:);
 
-    % fprintf('Generated %d random bits\n', params.num_bits);
+    fprintf('Generated %d random bits\n', params.num_bits);
     % fprintf('Data bits: %s\n', num2str(data_bits'));
 
     %% Transmitter Chain
@@ -101,6 +105,11 @@ for f = 1:params.num_frames
     fprintf('\n--- Channel Encoding ---\n');
     encoded_bits = channel_encoding(data_bits, params);
     fprintf('Encoded bits length: %d\n', length(encoded_bits));
+
+    % Convert to 63*63 array and swap row and columns
+    encoded_bits = reshape(encoded_bits, params.input_width + params.parity_bits, params.input_height)';
+    % Go back to column vector
+    encoded_bits = encoded_bits(:);
 
     % 2. Framing 
     fprintf('\n--- Framing ---\n');
@@ -112,11 +121,11 @@ for f = 1:params.num_frames
     qam_symbols = qam_modulator(framed_bits, params);
     fprintf('Number of QAM symbols: %d\n', length(qam_symbols));
 
-    ofdm_symbol = rxFilt(qam_symbols);
+    % ofdm_symbol = txFilt(qam_symbols);
 
     % 4. OFDM Mod
     fprintf('\n--- OFDM (IFFT) ---\n');
-    % ofdm_symbol = ofdm_modulator(qam_symbols, params);
+    ofdm_symbol = ofdm_modulator(qam_symbols, params);
     fprintf('OFDM symbol length: %d\n', length(ofdm_symbol));
 
 
@@ -130,13 +139,13 @@ for f = 1:params.num_frames
     % % RECEIVE SIGNAL
     rx_signal = pluto_receive(pluto_params, params);
 
-    rx_qam_symbols = txFilt(rx_signal);
+    % rx_qam_symbols = rxFilt(rx_signal);
 
     %% Receiver Chain
 
     % 1. OFDM Demodulation (with integrated equalization)
     fprintf('\n--- OFDM Demodulation & Equalization ---\n');
-    % rx_qam_symbols = ofdm_demodulator(rx_signal, params);
+    rx_qam_symbols = ofdm_demodulator(rx_signal, params);
     fprintf('Recovered QAM symbols: %d\n', length(rx_qam_symbols));
 
     %ax = gca;
@@ -155,10 +164,20 @@ for f = 1:params.num_frames
     % 6. Remove Framing
     fprintf('\n--- Removing Framing ---\n');
     deframed_bits = deframing(demod_bits, params);
+    fprintf('Deframed bits length: %d\n', length(deframed_bits));
+
+    % Convert to 63x63 matrix and swap rows and columns back
+    deframed_bits = reshape(deframed_bits, params.input_height, params.input_width + params.parity_bits)';
+    deframed_bits = deframed_bits(:);
 
     % 7. Channel Decoding
     fprintf('\n--- Channel Decoding ---\n');
     decoded_bits = channel_decoding(deframed_bits, params);
+    fprintf('Decoded bits length: %d\n', length(decoded_bits));
+
+    % Frame performance
+    num_bit_errors = sum(data_bits(:) ~= decoded_bits(:));
+    fprintf('Number of bit errors in this frame: %d\n', num_bit_errors);
 
     % Write output bits to received array
     if f == 1
