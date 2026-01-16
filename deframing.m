@@ -32,6 +32,16 @@ barker2_required_correlation = 0.9;
 % Extract data bits directly (assuming perfect synchronization)
 % Skip Barker codes and metadata, extract only data
 
+
+frame = frame(:);  % force column
+
+if numel(frame) < 4096
+    frame(end+1:4096,1) = 0;
+elseif numel(frame) > 4096
+    frame = frame(1:4096,1);
+end
+
+
 % 113 - 2128 first 32 blocks of 63 bits of data (0-based: 113-2128, 1-based: 114-2129)
 data_block1 = frame(114:2129); % 2016 bits
 
